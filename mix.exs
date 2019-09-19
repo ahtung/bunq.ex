@@ -14,6 +14,7 @@ defmodule Bunq.MixProject do
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
+      applications: [:rsa_ex],
       extra_applications: [:logger]
     ]
   end
@@ -21,7 +22,8 @@ defmodule Bunq.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:httpoison, "~> 1.5"}
+      {:httpoison, "~> 1.5"},
+      {:rsa_ex, "~> 0.4"}
     ]
   end
 end
