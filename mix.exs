@@ -23,7 +23,9 @@ defmodule Bunq.MixProject do
   defp deps do
     [
       {:httpoison, "~> 1.5"},
-      {:rsa_ex, "~> 0.4"}
+      {:rsa_ex, "~> 0.4"},
+      {:uuid, "~> 1.1"},
+      {:poison, "~> 3.1"}
     ]
   end
 end

@@ -13,25 +13,91 @@ defmodule Bunq do
 
   """
   def hello do
-    base = "https://public-api.sandbox.bunq.com"
-    version = 1
+    HTTPoison.start
+
+    # Generate Keys
     {:ok, priv} = RsaEx.generate_private_key
     {:ok, pub} = RsaEx.generate_public_key(priv)
 
-    HTTPoison.start
-    result = HTTPoison.post "#{base}/v#{version}/installation",
-      "{\"client_public_key\": \"#{String.slice(pub, 0..-2)}\"}",
-      [
-        {"Cache-Control", "no-cache"},
-        {"User-Agent", "bunq-TestServer/1.00 sandbox/0.17b3"},
-        {"X-Bunq-Language", "en_US"},
-        {"X-Bunq-Region", "en_US"},
-        {"X-Bunq-Client-Request-Id", "bunq.ex"},
-        {"X-Bunq-Geolocation", "0 0 0 0 000"}
+    with  {:ok, body} <- Poison.encode(%{"client_public_key" => pub}),
+          {:ok, response} <- create_installation(body),
+          {:ok, response_body} <- decode_installation(response.body),
+          token <- parse_token(response_body),
+          server_public_key <- parse_server_public_key(response_body),
+          {:ok, dsbody} <- Poison.encode(%{}),
+          {:ok, dsresponse} <- create_device_server(dsbody) do
 
-      ]
-    IO.inspect result
+        IO.inspect dsresponse
+        IO.puts("YAY")
+
+    else
+      {:error, error} ->
+        IO.inspect error
+    end
 
     :world
+  end
+
+  defp parse_server_public_key(response) do
+    response."Response"
+    |> Enum.at(2)
+    |> Map.fetch!("ServerPublicKey")
+    |> Map.fetch!("server_public_key")
+    |> IO.inspect(label: "Server Public Key")
+  end
+
+  defp parse_token(response) do
+    response."Response"
+    |> Enum.at(1)
+    |> Map.fetch!("Token")
+    |> Map.fetch!("token")
+    |> IO.inspect(label: "Token")
+  end
+
+  defp create_device_server(body) do
+    HTTPoison.post(
+      "#{api_url()}/device-server",
+      body,
+      [
+        {"Cache-Control", "no-cache"},
+        {"User-Agent", "bunq.ex/#{Application.spec(:bunq, :vsn)}"},
+        {"X-Bunq-Language", "nl_NL"},
+        {"X-Bunq-Region", "nl_NL"},
+        {"X-Bunq-Client-Request-Id", UUID.uuid4()},
+        {"X-Bunq-Geolocation", "0 0 0 0 000"}
+      ]
+    )
+  end
+
+  defp create_installation(body) do
+    HTTPoison.post(
+      "#{api_url()}/installation",
+      body,
+      [
+        {"Cache-Control", "no-cache"},
+        {"User-Agent", "bunq.ex/#{Application.spec(:bunq, :vsn)}"},
+        {"X-Bunq-Language", "nl_NL"},
+        {"X-Bunq-Region", "nl_NL"},
+        {"X-Bunq-Client-Request-Id", UUID.uuid4()},
+        {"X-Bunq-Geolocation", "0 0 0 0 000"}
+      ]
+    )
+  end
+
+  defp decode_installation(body) do
+    Poison.decode(
+      body,
+      as: %Bunq.Response{
+        Response: [
+          %{"Id" => %Bunq.Response.Id{}},
+          %{"Token" => %Bunq.Response.Token{}},
+          %{"ServerPublicKey" => %Bunq.Response.ServerPublicKey{}}
+        ]
+      }
+    )
+  end
+
+  defp api_url do
+    "#{Application.get_env(:bunq, :base_url)}/v#{Application.get_env(:bunq, :version)}"
   end
 end
