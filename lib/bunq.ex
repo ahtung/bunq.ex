@@ -23,12 +23,16 @@ defmodule Bunq do
           {:ok, response} <- create_installation(body),
           {:ok, response_body} <- decode_installation(response.body),
           token <- parse_token(response_body),
-          server_public_key <- parse_server_public_key(response_body),
+          _server_public_key <- parse_server_public_key(response_body),
           {:ok, dsbody} <- Poison.encode(%{"description" => "bunq.ex", "secret" => "sandbox_0c3455603650264be3d392c62a5b50fef52a5af24aedc206a5a120b1", "permitted_ips" => ["*"]}),
-          {:ok, dsresponse} <- create_device_server(dsbody, token, priv) do
+          {:ok, _dsresponse} <- create_device_server(dsbody, token, priv),
+          {:ok, sbody} <- Poison.encode(%{"secret" => "sandbox_0c3455603650264be3d392c62a5b50fef52a5af24aedc206a5a120b1"}),
+          {:ok, sresponse} <- create_session(sbody, token, priv),
+          user_id <- parse_session(sresponse),
+          {:ok, mabody} <- Poison.encode(%{}),
+          {:ok, sresponse} <- get_monetary_accounts(user_id, mabody, token, priv) do
 
-        IO.inspect dsresponse
-        IO.puts("YAY")
+        IO.inspect sresponse
 
     else
       {:error, error} ->
@@ -38,12 +42,21 @@ defmodule Bunq do
     :world
   end
 
+  defp parse_session(response) do
+    response.body
+    |> Poison.decode!
+    |> Map.fetch!("Response")
+    |> Enum.at(2)
+    |> Map.fetch!("UserPerson")
+    |> Map.fetch!("id")
+    |> IO.inspect(label: "ID")
+  end
+
   defp parse_server_public_key(response) do
     response."Response"
     |> Enum.at(2)
     |> Map.fetch!("ServerPublicKey")
     |> Map.fetch!("server_public_key")
-    |> IO.inspect(label: "Server Public Key")
   end
 
   defp parse_token(response) do
@@ -51,23 +64,26 @@ defmodule Bunq do
     |> Enum.at(1)
     |> Map.fetch!("Token")
     |> Map.fetch!("token")
-    |> IO.inspect(label: "Token")
   end
 
   defp create_device_server(body, token, rsa_private_key) do
-    body |> IO.inspect(label: "Body")
     headers = [{"X-Bunq-Client-Authentication", token} | default_headers()]
     signature = Bunq.Signer.sign("POST", "/v1/device-server", headers, body, rsa_private_key)
-    IO.inspect(signature, label: "Signature")
-
-    [{"X-Bunq-Client-Signature", signature} | headers] |> IO.inspect
-    body |> IO.inspect
-
     HTTPoison.post(
       "#{api_url()}/device-server",
       body,
       [{"X-Bunq-Client-Signature", signature} | headers]
-    ) |> IO.inspect
+    )
+  end
+
+  defp create_session(body, token, rsa_private_key) do
+    headers = [{"X-Bunq-Client-Authentication", token} | default_headers()]
+    signature = Bunq.Signer.sign("POST", "/v1/session-server", headers, body, rsa_private_key)
+    HTTPoison.post(
+      "#{api_url()}/session-server",
+      body,
+      [{"X-Bunq-Client-Signature", signature} | headers]
+    )
   end
 
   defp create_installation(body) do
@@ -75,6 +91,17 @@ defmodule Bunq do
       "#{api_url()}/installation",
       body,
       default_headers()
+    )
+  end
+
+  defp get_monetary_accounts(user_id, body, token, rsa_private_key) do
+    user_id |> IO.inspect(label: "ID")
+    headers = [{"X-Bunq-Client-Authentication", token} | default_headers()]
+    signature = Bunq.Signer.sign("GET", "/user/#{user_id}/monetary-account", headers, body, rsa_private_key)
+    HTTPoison.get(
+      "#{api_url()}/user/#{user_id}/monetary-account",
+      [{"X-Bunq-Client-Signature", signature} | headers],
+      []
     )
   end
 
