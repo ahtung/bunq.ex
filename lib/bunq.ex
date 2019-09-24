@@ -19,9 +19,6 @@ defmodule Bunq do
     {:ok, priv} = RsaEx.generate_private_key
     {:ok, pub} = RsaEx.generate_public_key(priv)
 
-    ip = "167.202.201.20"
-
-
     with  {:ok, body} <- Poison.encode(%{"client_public_key" => pub}),
           {:ok, response} <- create_installation(body),
           {:ok, response_body} <- decode_installation(response.body),
@@ -59,16 +56,7 @@ defmodule Bunq do
 
   defp create_device_server(body, token, rsa_private_key) do
     body |> IO.inspect(label: "Body")
-    headers = [
-      {"Cache-Control", "no-cache"},
-      {"User-Agent", "bunq.ex/#{Application.spec(:bunq, :vsn)}"},
-      {"X-Bunq-Language", "nl_NL"},
-      {"X-Bunq-Region", "nl_NL"},
-      {"X-Bunq-Client-Request-Id", UUID.uuid4()},
-      {"X-Bunq-Geolocation", "0 0 0 0 000"},
-      {"X-Bunq-Client-Authentication", token}
-    ]
-
+    headers = [{"X-Bunq-Client-Authentication", token} | default_headers()]
     signature = Bunq.Signer.sign("POST", "/v1/device-server", headers, body, rsa_private_key)
     IO.inspect(signature, label: "Signature")
 
@@ -86,15 +74,19 @@ defmodule Bunq do
     HTTPoison.post(
       "#{api_url()}/installation",
       body,
-      [
-        {"Cache-Control", "no-cache"},
-        {"User-Agent", "bunq.ex/#{Application.spec(:bunq, :vsn)}"},
-        {"X-Bunq-Language", "nl_NL"},
-        {"X-Bunq-Region", "nl_NL"},
-        {"X-Bunq-Client-Request-Id", UUID.uuid4()},
-        {"X-Bunq-Geolocation", "0 0 0 0 000"}
-      ]
+      default_headers()
     )
+  end
+
+  defp default_headers do
+    [
+      {"Cache-Control", "no-cache"},
+      {"User-Agent", "bunq.ex/#{Application.spec(:bunq, :vsn)}"},
+      {"X-Bunq-Language", "nl_NL"},
+      {"X-Bunq-Region", "nl_NL"},
+      {"X-Bunq-Client-Request-Id", UUID.uuid4()},
+      {"X-Bunq-Geolocation", "0 0 0 0 000"}
+    ]
   end
 
   defp decode_installation(body) do
