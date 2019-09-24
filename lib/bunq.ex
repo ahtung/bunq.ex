@@ -69,7 +69,7 @@ defmodule Bunq do
       {"X-Bunq-Client-Authentication", token}
     ]
 
-    signature = sign("POST", "/v1/device-server", headers, body, rsa_private_key)
+    signature = Bunq.Signer.sign("POST", "/v1/device-server", headers, body, rsa_private_key)
     IO.inspect(signature, label: "Signature")
 
     [{"X-Bunq-Client-Signature", signature} | headers] |> IO.inspect
@@ -112,27 +112,5 @@ defmodule Bunq do
 
   defp api_url do
     "#{Application.get_env(:bunq, :base_url)}/v#{Application.get_env(:bunq, :version)}"
-  end
-
-  defp sign(method, path, headers, body, rsa_private_key) do
-    sorted_headers =
-      headers
-      |> IO.inspect(label: "Headers")
-      |> Enum.sort_by(fn(k) ->
-        elem(k, 0)
-      end)
-      |> IO.inspect(label: "Sorted")
-      |> Enum.map(fn(x) ->
-        "#{elem(x, 0)}: #{elem(x, 1)}"
-      end)
-      |> IO.inspect(label: "Stringified")
-      |> Enum.join("\n")
-
-    {:ok, signature} =
-      "#{method} #{path}\n#{sorted_headers}\n\n#{body}"
-      |> IO.inspect(label: "ToSign (has a better name)")
-      |> RsaEx.sign(rsa_private_key, :sha256)
-
-    Base.encode64(signature)
   end
 end
