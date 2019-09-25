@@ -24,9 +24,9 @@ defmodule Bunq do
           {:ok, response_body} <- decode_installation(response.body),
           token <- parse_token(response_body),
           _server_public_key <- parse_server_public_key(response_body),
-          {:ok, dsbody} <- Poison.encode(%{"description" => "bunq.ex", "secret" => "sandbox_0c3455603650264be3d392c62a5b50fef52a5af24aedc206a5a120b1", "permitted_ips" => ["*"]}),
+          {:ok, dsbody} <- Poison.encode(%{"description" => "bunq.ex", "secret" => "sandbox_900b3fc9cc77c7b282aacba44c9d73b7acedff9a756041e14e228c8c", "permitted_ips" => ["*"]}),
           {:ok, _dsresponse} <- create_device_server(dsbody, token, priv),
-          {:ok, sbody} <- Poison.encode(%{"secret" => "sandbox_0c3455603650264be3d392c62a5b50fef52a5af24aedc206a5a120b1"}),
+          {:ok, sbody} <- Poison.encode(%{"secret" => "sandbox_900b3fc9cc77c7b282aacba44c9d73b7acedff9a756041e14e228c8c"}),
           {:ok, sresponse} <- create_session(sbody, token, priv),
           user_id <- parse_session(sresponse),
           {:ok, mabody} <- Poison.encode(%{}),
@@ -49,7 +49,6 @@ defmodule Bunq do
     |> Enum.at(2)
     |> Map.fetch!("UserPerson")
     |> Map.fetch!("id")
-    |> IO.inspect(label: "ID")
   end
 
   defp parse_server_public_key(response) do
@@ -95,7 +94,6 @@ defmodule Bunq do
   end
 
   defp get_monetary_accounts(user_id, body, token, rsa_private_key) do
-    user_id |> IO.inspect(label: "ID")
     headers = [{"X-Bunq-Client-Authentication", token} | default_headers()]
     signature = Bunq.Signer.sign("GET", "/user/#{user_id}/monetary-account", headers, body, rsa_private_key)
     HTTPoison.get(
