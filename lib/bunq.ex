@@ -28,9 +28,8 @@ defmodule Bunq do
           {:ok, _dsresponse} <- create_device_server(dsbody, token, priv),
           {:ok, sbody} <- Poison.encode(%{"secret" => "sandbox_900b3fc9cc77c7b282aacba44c9d73b7acedff9a756041e14e228c8c"}),
           {:ok, sresponse} <- create_session(sbody, token, priv),
-          user_id <- parse_session(sresponse),
-          {:ok, mabody} <- Poison.encode(%{}),
-          {:ok, sresponse} <- get_monetary_accounts(user_id, mabody, token, priv) do
+          {user_id, stoken} <- parse_session(sresponse),
+          {:ok, sresponse} <- get_monetary_accounts(user_id, stoken, priv) do
 
         IO.inspect sresponse
 
@@ -43,12 +42,21 @@ defmodule Bunq do
   end
 
   defp parse_session(response) do
-    response.body
-    |> Poison.decode!
-    |> Map.fetch!("Response")
-    |> Enum.at(2)
-    |> Map.fetch!("UserPerson")
-    |> Map.fetch!("id")
+    user_id =
+      response.body
+      |> Poison.decode!
+      |> Map.fetch!("Response")
+      |> Enum.at(2)
+      |> Map.fetch!("UserPerson")
+      |> Map.fetch!("id")
+    token =
+      response.body
+      |> Poison.decode!
+      |> Map.fetch!("Response")
+      |> Enum.at(1)
+      |> Map.fetch!("Token")
+      |> Map.fetch!("token")
+    {user_id, token} |> IO.inspect
   end
 
   defp parse_server_public_key(response) do
@@ -93,9 +101,9 @@ defmodule Bunq do
     )
   end
 
-  defp get_monetary_accounts(user_id, body, token, rsa_private_key) do
+  defp get_monetary_accounts(user_id, token, rsa_private_key) do
     headers = [{"X-Bunq-Client-Authentication", token} | default_headers()]
-    signature = Bunq.Signer.sign("GET", "/user/#{user_id}/monetary-account", headers, body, rsa_private_key)
+    signature = Bunq.Signer.sign("GET", "/user/#{user_id}/monetary-account", headers, rsa_private_key)
     HTTPoison.get(
       "#{api_url()}/user/#{user_id}/monetary-account",
       [{"X-Bunq-Client-Signature", signature} | headers],
