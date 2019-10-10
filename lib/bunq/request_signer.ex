@@ -10,10 +10,10 @@ defmodule Bunq.RequestSigner do
     |> Tesla.run(next)
   end
 
-  def sign(method, path, headers, body, rsa_private_key) do
+  defp sign(method, path, headers, body, rsa_private_key) do
     headers_string = headers |> filter |> sort
     digest = "#{method |> Atom.to_string |> String.upcase} #{path}\n#{headers_string}\n\n#{body}"
-    |> IO.inspect(label: "✅")
+    |> IO.inspect(label: "🔏")
     sign(digest, rsa_private_key)
   end
 
