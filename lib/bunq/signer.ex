@@ -1,30 +1,39 @@
-defmodule Bunq.Signer do
+defmodule Bunq.RequestSigner do
+  @behaviour Tesla.Middleware
+
+  def call(env, next, opts) do
+    path = String.replace(env.url, "https://public-api.sandbox.bunq.com", "")
+    signature = sign(env.method, path, env.headers, env.body, opts)
+
+    env
+    |> Tesla.put_headers([{"X-Bunq-Client-Signature", signature}])
+    |> Tesla.run(next)
+  end
+
   def sign(method, path, headers, body, rsa_private_key) do
-    sorted_headers = sorted(headers)
-    digest = "#{method} #{path}\n#{sorted_headers}\n\n#{body}"
+    headers_string = headers |> filter |> sort
+    digest = "#{method |> Atom.to_string |> String.upcase} #{path}\n#{headers_string}\n\n#{body}"
+    |> IO.inspect(label: "✅")
     sign(digest, rsa_private_key)
   end
 
-  def sign(method, path, headers, rsa_private_key) do
-    sorted_headers = sorted(headers)
-    digest = "#{method} #{path}\n#{sorted_headers}\n\n"
-    sign(digest, rsa_private_key)
-  end
-
-  defp sorted(headers) do
+  defp filter(headers) do
     headers
-    |> Enum.sort_by(fn(k) ->
-      elem(k, 0)
+    |> Enum.filter(fn header ->
+      header_name = elem(header, 0)
+      "Cache-Control" == header_name || "User-Agent" == header_name || header_name |> String.starts_with?("X-Bunq-")
     end)
-    |> Enum.map(fn(x) ->
-      "#{elem(x, 0)}: #{elem(x, 1)}"
-    end)
+  end
+
+  defp sort(headers) do
+    headers
+    |> Enum.sort_by(fn header -> elem(header, 0) end)
+    |> Enum.map(fn header -> "#{elem(header, 0)}: #{elem(header, 1)}" end)
     |> Enum.join("\n")
   end
 
   defp sign(digest, rsa_private_key) do
-    with {:ok, signature} = RsaEx.sign(digest, rsa_private_key, :sha256) do
-      Base.encode64(signature)
-    end
+    {:ok, signature} = RsaEx.sign(digest, rsa_private_key, :sha256)
+    Base.encode64(signature)
   end
 end

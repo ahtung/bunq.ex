@@ -22,10 +22,11 @@ defmodule Bunq.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:httpoison, "~> 1.5"},
+      {:tesla, "~> 1.2.0"},
+      {:hackney, "~> 1.14.0"},
+      {:jason, ">= 1.0.0"},
       {:rsa_ex, "~> 0.4"},
-      {:uuid, "~> 1.1"},
-      {:poison, "~> 3.1"}
+      {:uuid, "~> 1.1"}
     ]
   end
 end

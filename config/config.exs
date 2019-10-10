@@ -1,3 +1,5 @@
 use Mix.Config
 
-import_config "#{Mix.env}.exs"
+config :bunq, base_url: "https://public-api.sandbox.bunq.com/v1"
+
+# config :tesla, adapter: Tesla.Adapter.Hackney
