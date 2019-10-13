@@ -26,6 +26,10 @@ defmodule Bunq do
     Tesla.get(client, "/user/#{user_id}/monetary-account")
   end
 
+  def get_payments(client, user_id, monetary_account_bank_id) do
+    Tesla.get(client, "/user/#{user_id}/monetary-account/#{monetary_account_bank_id}/payment")
+  end
+
   def client() do
     middleware = [
       {Tesla.Middleware.BaseUrl, Application.get_env(:bunq, :base_url)},

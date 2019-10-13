@@ -12,24 +12,52 @@ defmodule BunqTest do
 
     # Create installation
     {:ok, response} = Bunq.create_installation(client, pub)
-    token = Enum.at(response.body["Response"], 1)["Token"]["token"]
-    server_public_key = Enum.at(response.body["Response"], 2)["ServerPublicKey"]["server_public_key"]
+    %{"Response" =>
+      [
+        %{"Id" => %{"id" => _id}},
+        %{"Token" => %{"token" => token}},
+        %{"ServerPublicKey" => %{"server_public_key" => server_public_key}}
+      ]
+    } = response.body
+    ############################################################################
 
     # Client
     client = Bunq.client(token, priv, server_public_key)
 
-    {:ok, response} = Bunq.create_device_server(client)
-    # |> IO.inspect
+    {:ok, _response} = Bunq.create_device_server(client)
+      # |> IO.inspect
+
+    ############################################################################
 
     {:ok, response} = Bunq.create_session(client)
-    token = Enum.at(response.body["Response"], 1)["Token"]["token"]
-    user_id = Enum.at(response.body["Response"], 2)["UserPerson"]["id"]
+    %{"Response" =>
+      [
+        %{"Id" => %{"id" => _id}},
+        %{"Token" => %{"token" => token}},
+        %{"UserPerson" => %{"id" => user_id}}
+      ]
+    } = response.body
+
+    ############################################################################
 
     # Client
     client = Bunq.client(token, priv, server_public_key)
 
     {:ok, response} = Bunq.get_monetary_accounts(client, user_id)
+    %{"Response" =>
+      [
+        %{
+          "MonetaryAccountBank" => %{
+            "id" => monetary_account_bank_id
+          }
+        }
+      ]
+    } = response.body
 
-    IO.inspect(response)
+    # IO.inspect(monetary_account_bank_id)
+    ############################################################################
+
+    {:ok, response} = Bunq.get_payments(client, user_id, monetary_account_bank_id)
+    |> IO.inspect
   end
 end
